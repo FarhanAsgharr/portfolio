@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" fill="none">
+<defs>
+  <radialGradient id="wash" cx="30%" cy="10%" r="90%">
+    <stop offset="0" stop-color="#7c3aed" stop-opacity="0.34"/>
+    <stop offset="1" stop-color="#0a0f20" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="wash2" cx="85%" cy="95%" r="70%">
+    <stop offset="0" stop-color="#06b6d4" stop-opacity="0.26"/>
+    <stop offset="1" stop-color="#0a0f20" stop-opacity="0"/>
+  </radialGradient>
+  <pattern id="mesh" width="48" height="48" patternUnits="userSpaceOnUse">
+    <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+  </pattern>
+</defs>
+<rect width="1200" height="750" fill="#0a0f20"/>
+<rect width="1200" height="750" fill="url(#mesh)"/>
+<rect width="1200" height="750" fill="url(#wash)"/>
+<rect width="1200" height="750" fill="url(#wash2)"/>
+<g><circle cx="865.0" cy="569.2" r="73.6" fill="none" stroke="#7c3aed" stroke-width="1.9" opacity="0.47"/><circle cx="774.0" cy="318.3" r="208.0" fill="none" stroke="#06b6d4" stroke-width="1.6" opacity="0.39"/><circle cx="736.0" cy="466.4" r="240.1" fill="none" stroke="#7c3aed" stroke-width="1.8" opacity="0.32"/><circle cx="834.8" cy="205.5" r="184.2" fill="none" stroke="#06b6d4" stroke-width="2.1" opacity="0.28"/><circle cx="389.1" cy="381.1" r="155.9" fill="none" stroke="#7c3aed" stroke-width="1.1" opacity="0.21"/><circle cx="395.4" cy="551.9" r="125.8" fill="none" stroke="#06b6d4" stroke-width="2.7" opacity="0.41"/><circle cx="404.2" cy="249.1" r="163.0" fill="none" stroke="#7c3aed" stroke-width="1.7" opacity="0.33"/><circle cx="914.3" cy="473.9" r="57.8" fill="none" stroke="#06b6d4" stroke-width="2.7" opacity="0.19"/><circle cx="944.5" cy="160.2" r="108.6" fill="none" stroke="#7c3aed" stroke-width="2.8" opacity="0.38"/></g>
+</svg>

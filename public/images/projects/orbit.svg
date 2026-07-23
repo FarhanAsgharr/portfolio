@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" fill="none">
+<defs>
+  <radialGradient id="wash" cx="30%" cy="10%" r="90%">
+    <stop offset="0" stop-color="#06b6d4" stop-opacity="0.34"/>
+    <stop offset="1" stop-color="#0a0f20" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="wash2" cx="85%" cy="95%" r="70%">
+    <stop offset="0" stop-color="#7c3aed" stop-opacity="0.26"/>
+    <stop offset="1" stop-color="#0a0f20" stop-opacity="0"/>
+  </radialGradient>
+  <pattern id="mesh" width="48" height="48" patternUnits="userSpaceOnUse">
+    <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+  </pattern>
+</defs>
+<rect width="1200" height="750" fill="#0a0f20"/>
+<rect width="1200" height="750" fill="url(#mesh)"/>
+<rect width="1200" height="750" fill="url(#wash)"/>
+<rect width="1200" height="750" fill="url(#wash2)"/>
+<g><ellipse cx="600" cy="375" rx="105" ry="62" fill="none" stroke="#06b6d4" stroke-width="1.2" opacity="0.3" transform="rotate(-11.0 600 375)"/><circle cx="504.7" cy="349.0" r="4.9" fill="#7c3aed"/><ellipse cx="600" cy="375" rx="210" ry="124" fill="none" stroke="#06b6d4" stroke-width="1.2" opacity="0.3" transform="rotate(-4.0 600 375)"/><circle cx="619.4" cy="498.5" r="4.8" fill="#7c3aed"/><ellipse cx="600" cy="375" rx="315" ry="186" fill="none" stroke="#06b6d4" stroke-width="1.2" opacity="0.3" transform="rotate(3.0 600 375)"/><circle cx="835.6" cy="251.5" r="5.1" fill="#7c3aed"/><ellipse cx="600" cy="375" rx="420" ry="248" fill="none" stroke="#06b6d4" stroke-width="1.2" opacity="0.3" transform="rotate(10.0 600 375)"/><circle cx="943.0" cy="518.1" r="5.3" fill="#7c3aed"/><ellipse cx="600" cy="375" rx="525" ry="310" fill="none" stroke="#06b6d4" stroke-width="1.2" opacity="0.3" transform="rotate(17.0 600 375)"/><circle cx="758.9" cy="670.5" r="7.2" fill="#7c3aed"/><circle cx="600" cy="375" r="26" fill="#7c3aed" opacity="0.9"/></g>
+</svg>

@@ -1,26 +1,416 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
+/* -------------------------------------------------------------------------- */
+/*  Dark mode strategy: class-based, driven by next-themes.                    */
+/* -------------------------------------------------------------------------- */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* -------------------------------------------------------------------------- */
+/*  Design tokens                                                             */
+/*  Semantic values live on :root so they can flip between themes. The         */
+/*  @theme block maps them into Tailwind's utility namespace.                  */
+/* -------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand — fixed across themes */
+  --brand-primary: #7c3aed;
+  --brand-secondary: #06b6d4;
+  --brand-accent: #f59e0b;
+
+  /* Surfaces */
+  --surface-base: #fafafc;
+  --surface-card: #ffffff;
+  --surface-raised: #f1f2f7;
+  --surface-inset: #e8eaf2;
+
+  /* Content */
+  --content-primary: #0b1020;
+  --content-muted: #56607a;
+  --content-faint: #8a93aa;
+
+  /* Lines & glass */
+  --line: rgb(11 16 32 / 0.1);
+  --line-strong: rgb(11 16 32 / 0.16);
+  --glass-bg: rgb(255 255 255 / 0.72);
+  --glass-border: rgb(11 16 32 / 0.08);
+  --glass-blur: 16px;
+
+  /* Focus */
+  --focus: #7c3aed;
+
+  /* Elevation — soft, wide, low-opacity. Never a hard drop shadow. */
+  --shadow-sm: 0 1px 2px rgb(11 16 32 / 0.06), 0 2px 8px rgb(11 16 32 / 0.04);
+  --shadow-md: 0 2px 4px rgb(11 16 32 / 0.05), 0 12px 32px rgb(11 16 32 / 0.08);
+  --shadow-lg: 0 4px 8px rgb(11 16 32 / 0.05), 0 24px 64px rgb(11 16 32 / 0.12);
+
+  --radius: 0.875rem;
+}
+
+.dark {
+  --surface-base: #050816;
+  --surface-card: #111827;
+  --surface-raised: #161f33;
+  --surface-inset: #0b1122;
+
+  --content-primary: #ffffff;
+  --content-muted: #94a3b8;
+  --content-faint: #64748b;
+
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.14);
+  --glass-bg: rgb(17 24 39 / 0.55);
+  --glass-border: rgb(255 255 255 / 0.1);
+
+  --focus: #a78bfa;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 8px 32px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 24px 72px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colour namespace */
+  --color-base: var(--surface-base);
+  --color-card: var(--surface-card);
+  --color-raised: var(--surface-raised);
+  --color-inset: var(--surface-inset);
+
+  --color-content: var(--content-primary);
+  --color-muted: var(--content-muted);
+  --color-faint: var(--content-faint);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-primary: var(--brand-primary);
+  --color-secondary: var(--brand-secondary);
+  --color-accent: var(--brand-accent);
+
+  /* Static brand ramps for gradients and glows */
+  --color-violet-glow: #a78bfa;
+  --color-cyan-glow: #67e8f9;
+  --color-amber-glow: #fcd34d;
+
+  /* Typography */
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", monospace;
+
+  /* Type scale — fluid, clamped, with paired line-height and tracking */
+  --text-eyebrow: 0.6875rem;
+  --text-eyebrow--line-height: 1;
+  --text-eyebrow--letter-spacing: 0.16em;
+
+  --text-display: clamp(2.75rem, 1.2rem + 6.4vw, 7rem);
+  --text-display--line-height: 0.92;
+  --text-display--letter-spacing: -0.045em;
+
+  --text-h1: clamp(2.25rem, 1.3rem + 3.6vw, 4rem);
+  --text-h1--line-height: 1;
+  --text-h1--letter-spacing: -0.035em;
+
+  --text-h2: clamp(1.75rem, 1.3rem + 1.8vw, 2.75rem);
+  --text-h2--line-height: 1.08;
+  --text-h2--letter-spacing: -0.028em;
+
+  --text-h3: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  --text-h3--line-height: 1.2;
+  --text-h3--letter-spacing: -0.018em;
+
+  --text-lead: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+  --text-lead--line-height: 1.6;
+
+  /* Radii */
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  /* Shadows */
+  --shadow-soft-sm: var(--shadow-sm);
+  --shadow-soft-md: var(--shadow-md);
+  --shadow-soft-lg: var(--shadow-lg);
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Layout */
+  --spacing-section: clamp(5rem, 3rem + 9vw, 9rem);
+  --container-page: 78rem;
+
+  /* Keyframes → animation utilities */
+  --animate-marquee: marquee var(--marquee-duration, 40s) linear infinite;
+  --animate-drift: drift 22s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+  --animate-pulse-glow: pulse-glow 4s ease-in-out infinite;
+  --animate-caret: caret 1.05s steps(1) infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-spin-slow: spin 18s linear infinite;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(4%, -6%, 0) scale(1.14);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Base layer                                                                */
+/* -------------------------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  /* Lenis owns scrolling once mounted; native smooth scroll would fight it. */
+  html.lenis,
+  html.lenis body {
+    scroll-behavior: auto;
+  }
+
+  body {
+    background-color: var(--surface-base);
+    color: var(--content-primary);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: clip;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: var(--radius-xs);
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--brand-primary) 40%, transparent);
+    color: var(--content-primary);
+  }
+
+  /* Scrollbar — thin, themed, non-intrusive */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--content-faint) 40%, transparent);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--brand-primary) 70%, transparent);
+    background-clip: content-box;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Component utilities                                                       */
+/* -------------------------------------------------------------------------- */
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: var(--container-page);
+    margin-inline: auto;
+    padding-inline: clamp(1.25rem, 0.5rem + 3vw, 2.5rem);
+  }
+
+  /* Glass surface — single source of truth for every frosted panel. */
+  .glass {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  }
+
+  /* Gradient border via mask — fill stays transparent so glass shows through. */
+  .gradient-ring {
+    position: relative;
+  }
+  .gradient-ring::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--brand-primary) 70%, transparent),
+      color-mix(in oklab, var(--brand-secondary) 55%, transparent) 45%,
+      transparent 70%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+  .gradient-ring:hover::before,
+  .gradient-ring:focus-within::before {
+    opacity: 1;
+  }
+
+  .text-gradient {
+    background: linear-gradient(
+      100deg,
+      var(--content-primary) 10%,
+      #a78bfa 45%,
+      #67e8f9 80%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-brand {
+    background: linear-gradient(100deg, var(--brand-primary), var(--brand-secondary) 70%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Animated grid, masked to a radial falloff so it never reads as a table. */
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, var(--line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 20%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 20%, transparent 78%);
+  }
+
+  /* Edge-fade for marquees and overflow rails */
+  .fade-x {
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  }
+
+  .shimmer-text {
+    background: linear-gradient(
+      90deg,
+      var(--content-muted) 20%,
+      var(--content-primary) 40%,
+      var(--content-primary) 60%,
+      var(--content-muted) 80%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Reduced motion — collapse decoration, keep the interface legible.          */
+/* -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Hide the native cursor only while the custom one is actually active. */
+@media (hover: hover) and (pointer: fine) {
+  body[data-custom-cursor="on"],
+  body[data-custom-cursor="on"] * {
+    cursor: none !important;
+  }
 }

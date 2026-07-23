@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" fill="none">
+<defs>
+  <radialGradient id="wash" cx="30%" cy="10%" r="90%">
+    <stop offset="0" stop-color="#06b6d4" stop-opacity="0.34"/>
+    <stop offset="1" stop-color="#0a0f20" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="wash2" cx="85%" cy="95%" r="70%">
+    <stop offset="0" stop-color="#7c3aed" stop-opacity="0.26"/>
+    <stop offset="1" stop-color="#0a0f20" stop-opacity="0"/>
+  </radialGradient>
+  <pattern id="mesh" width="48" height="48" patternUnits="userSpaceOnUse">
+    <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+  </pattern>
+</defs>
+<rect width="1200" height="750" fill="#0a0f20"/>
+<rect width="1200" height="750" fill="url(#mesh)"/>
+<rect width="1200" height="750" fill="url(#wash)"/>
+<rect width="1200" height="750" fill="url(#wash2)"/>
+<g><path d="M -50 26.6 C 412 -93.4, 724 146.6, 1250 26.6" fill="none" stroke="#7c3aed" stroke-width="2.3" opacity="0.26"/><path d="M -50 65.8 C 444 -54.2, 951 185.8, 1250 65.8" fill="none" stroke="#06b6d4" stroke-width="2.1" opacity="0.35"/><path d="M -50 116.9 C 447 -3.1, 758 236.9, 1250 116.9" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity="0.28"/><path d="M -50 168.9 C 473 48.9, 866 288.9, 1250 168.9" fill="none" stroke="#7c3aed" stroke-width="1.8" opacity="0.27"/><path d="M -50 228.2 C 314 108.2, 732 348.2, 1250 228.2" fill="none" stroke="#06b6d4" stroke-width="2.8" opacity="0.22"/><path d="M -50 271.6 C 388 151.6, 730 391.6, 1250 271.6" fill="none" stroke="#06b6d4" stroke-width="2.4" opacity="0.19"/><path d="M -50 346.8 C 232 226.8, 950 466.8, 1250 346.8" fill="none" stroke="#7c3aed" stroke-width="1.6" opacity="0.23"/><path d="M -50 377.8 C 262 257.8, 766 497.8, 1250 377.8" fill="none" stroke="#06b6d4" stroke-width="2.0" opacity="0.42"/><path d="M -50 446.4 C 226 326.4, 840 566.4, 1250 446.4" fill="none" stroke="#06b6d4" stroke-width="2.2" opacity="0.42"/><path d="M -50 503.7 C 233 383.7, 831 623.7, 1250 503.7" fill="none" stroke="#7c3aed" stroke-width="1.5" opacity="0.26"/><path d="M -50 539.6 C 251 419.6, 875 659.6, 1250 539.6" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity="0.45"/><path d="M -50 596.5 C 451 476.5, 793 716.5, 1250 596.5" fill="none" stroke="#06b6d4" stroke-width="2.2" opacity="0.45"/><path d="M -50 642.9 C 236 522.9, 865 762.9, 1250 642.9" fill="none" stroke="#7c3aed" stroke-width="1.9" opacity="0.26"/><path d="M -50 702.7 C 472 582.7, 975 822.7, 1250 702.7" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity="0.22"/></g>
+</svg>
