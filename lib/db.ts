@@ -34,6 +34,12 @@ export function getSql(): Sql | null {
     max: 3,
     idle_timeout: 20,
     connect_timeout: 10,
+    // Supabase's recommended connection string routes through pgbouncer in
+    // transaction mode, which can't hold the server-side prepared statements
+    // postgres.js uses by default — every query would fail. Disable prepared
+    // statements when we detect a pooled host. Direct connections (Neon, a
+    // local server, Supabase's direct string) keep them for the speed-up.
+    prepare: !isPooledConnection(url),
     // `CREATE TABLE IF NOT EXISTS` emits a NOTICE every time the table is
     // already there, which is every request after the first. Left on, that
     // buries real errors in the logs.
@@ -41,6 +47,26 @@ export function getSql(): Sql | null {
   });
 
   return globalForDb.sql;
+}
+
+/**
+ * Whether the connection goes through a transaction-mode pooler.
+ *
+ * Covers Supabase's pooler host and the 6543 pgbouncer port, plus a generic
+ * `pgbouncer=true` flag some providers add. Prepared statements must be off for
+ * these or queries fail with "prepared statement already exists".
+ */
+function isPooledConnection(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname.includes("pooler.supabase.com") ||
+      parsed.port === "6543" ||
+      parsed.searchParams.get("pgbouncer") === "true"
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**

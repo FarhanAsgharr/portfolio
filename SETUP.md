@@ -22,31 +22,32 @@ Open **http://localhost:3000**.
 
 ---
 
-## Step 2 — Get a free database
+## Step 2 — Get a free database (Supabase)
 
-You need one line of text called a **connection string**. Here's how to get one from Neon (free, no card).
+You need one line of text called a **connection string**. Here's how to get one from Supabase — free, no card.
 
-1. Go to **https://neon.tech** and sign up.
-2. Click **Create project**. Any name is fine.
-3. On the dashboard, find **Connection string** and click **Copy**.
-
-It looks like this:
+1. Go to **https://supabase.com**, sign up, and click **New project**.
+2. Give it a name and **set a database password** — write this down, you'll need it in a moment. Pick a region close to you. Click **Create new project** and wait ~1 minute for it to spin up.
+3. Click **Connect** at the top of the dashboard (or **Project Settings → Database**).
+4. Under **Connection string**, choose the **URI** tab, and copy the **Transaction pooler** string. It looks like this:
 
 ```
-postgresql://neondb_owner:AbC123xyz@ep-cool-name-12345.us-east-2.aws.neon.tech/neondb?sslmode=require
+postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 ```
 
-That whole line is your `DATABASE_URL`. Keep it private — it's the key to your data.
+5. Replace `[YOUR-PASSWORD]` with the database password you set in step 2. That whole line is your `DATABASE_URL`.
+
+> **Which string?** The **Transaction pooler** (port `6543`) is the right one for Vercel and this app — it's built for serverless. The app detects the pooler automatically and configures itself for it, so you don't have to change anything. The "Direct connection" string also works if you're only running locally.
+
+Keep this line private — it's the key to your data.
 
 <details>
-<summary>Prefer Supabase?</summary>
+<summary>Prefer Neon instead?</summary>
 
-1. Sign up at **https://supabase.com** and create a project.
-2. Go to **Project Settings → Database → Connection string**.
-3. Choose the **URI** tab and copy it.
-4. Replace `[YOUR-PASSWORD]` in that string with the database password you set when creating the project.
+1. Go to **https://neon.tech**, sign up, click **Create project**.
+2. Copy the **Connection string** from the dashboard. It already includes the password and `?sslmode=require`.
 
-Use the **Session pooler** string if one is offered — it handles more connections.
+Either provider works — the app handles both.
 </details>
 
 ---
