@@ -1,69 +1,50 @@
 import "server-only";
 
+import twilio from "twilio";
+
 /**
- * Sending an SMS.
+ * Real SMS delivery through Twilio.
  *
- * Real delivery needs a provider with paid credentials — there's no way around
- * that, so this is written to degrade honestly:
+ * There is no test/dev fallback by design: a code is either delivered to a real
+ * phone or the request fails loudly. Nothing about the code is ever logged or
+ * returned to the client — the only place it appears is the recipient's phone.
  *
- *   Twilio configured  → sends a real text message.
- *   Not configured     → "console delivery": the code is logged server-side,
- *                        and outside production it's handed back to the caller
- *                        so the whole reset flow is testable without paying for
- *                        SMS. In production without Twilio it is logged only,
- *                        never returned.
- *
- * Swapping Twilio for another provider means changing only `sendViaTwilio`.
+ * Credentials come exclusively from environment variables and are never logged.
+ * `TWILIO_FROM_NUMBER` is accepted as an alias for `TWILIO_PHONE_NUMBER` so an
+ * existing deployment keeps working after the rename.
  */
 
+function fromNumber(): string | undefined {
+  return process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_FROM_NUMBER;
+}
+
 export function isSmsConfigured(): boolean {
-  return Boolean(
-    process.env.TWILIO_ACCOUNT_SID &&
-      process.env.TWILIO_AUTH_TOKEN &&
-      process.env.TWILIO_FROM_NUMBER,
-  );
+  return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && fromNumber());
 }
 
-export interface SmsResult {
-  delivered: boolean;
-  /** Present only in non-production dev delivery, so the UI can show the code. */
-  devCode?: string;
+/** The message body, in the exact format the brief specifies. */
+function buildMessage(code: string): string {
+  return `Your verification code is:\n\n${code}\n\nThis code expires in 5 minutes.\nDo not share this code with anyone.`;
 }
 
-export async function sendOtpSms(toPhone: string, code: string): Promise<SmsResult> {
-  const message = `Your portfolio admin verification code is ${code}. It expires in 5 minutes.`;
+/**
+ * Send a code. Resolves on success, throws on any failure so the route can
+ * return a truthful error. The thrown message never contains the code.
+ */
+export async function sendOtpSms(toPhone: string, code: string): Promise<void> {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = fromNumber();
 
-  if (isSmsConfigured()) {
-    await sendViaTwilio(toPhone, message);
-    return { delivered: true };
+  if (!sid || !token || !from) {
+    throw new Error("SMS service is not configured.");
   }
 
-  // No provider: log it, and in dev only, return it.
-  console.info(`[sms] (dev delivery, no provider) → ${toPhone}: ${message}`);
-  const isProduction = process.env.NODE_ENV === "production";
-  return { delivered: false, devCode: isProduction ? undefined : code };
-}
+  const client = twilio(sid, token);
 
-async function sendViaTwilio(toPhone: string, body: string): Promise<void> {
-  const sid = process.env.TWILIO_ACCOUNT_SID!;
-  const token = process.env.TWILIO_AUTH_TOKEN!;
-  const from = process.env.TWILIO_FROM_NUMBER!;
-
-  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
-  const body_ = new URLSearchParams({ To: toPhone, From: from, Body: body });
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: body_.toString(),
+  await client.messages.create({
+    to: toPhone,
+    from,
+    body: buildMessage(code),
   });
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    // Surface the provider's failure rather than pretending the SMS was sent.
-    throw new Error(`Twilio send failed (${response.status}): ${detail.slice(0, 200)}`);
-  }
 }

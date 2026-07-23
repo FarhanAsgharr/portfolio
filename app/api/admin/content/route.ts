@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { verifyActiveSession } from "@/lib/admin-auth";
+import { logActivity } from "@/lib/activity";
 import { SESSION_COOKIE } from "@/lib/auth";
 import { defaultContent, getContentForEditing, saveContent } from "@/lib/content";
 import { isDatabaseConfigured } from "@/lib/db";
@@ -84,6 +85,7 @@ export async function PUT(request: Request) {
 
   try {
     await saveContent({ ...body, version: CONTENT_VERSION });
+    await logActivity("content_saved");
     return NextResponse.json({ ok: true, savedAt: new Date().toISOString() });
   } catch (error) {
     console.error("[admin] save failed:", error);
@@ -102,6 +104,7 @@ export async function DELETE() {
 
   try {
     await saveContent(defaultContent);
+    await logActivity("content_reset");
     return NextResponse.json({ ok: true, content: defaultContent });
   } catch (error) {
     return NextResponse.json(

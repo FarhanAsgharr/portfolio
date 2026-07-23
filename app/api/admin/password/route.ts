@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { changePassword, verifyActiveSession } from "@/lib/admin-auth";
+import { logActivity } from "@/lib/activity";
 import { SESSION_COOKIE } from "@/lib/auth";
 
 /**
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
   const result = await changePassword(currentPassword, newPassword);
 
   if (result.ok) {
+    await logActivity("password_changed");
     return NextResponse.json({ ok: true });
   }
 

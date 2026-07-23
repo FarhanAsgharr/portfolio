@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  Activity,
   AlertTriangle,
   Award,
   Check,
   ExternalLink,
   FolderGit2,
+  Inbox,
+  LayoutDashboard,
   Layers,
   Loader2,
   LogOut,
@@ -25,11 +28,14 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminButton } from "@/components/admin/ui";
+import { ActivityPanel } from "@/components/admin/panels/activity-panel";
 import { AiPanel } from "@/components/admin/panels/ai-panel";
 import { ContactPanel } from "@/components/admin/panels/contact-panel";
+import { DashboardPanel } from "@/components/admin/panels/dashboard-panel";
 import { EducationPanel } from "@/components/admin/panels/education-panel";
 import { ExperiencePanel } from "@/components/admin/panels/experience-panel";
 import { GithubPanel } from "@/components/admin/panels/github-panel";
+import { InboxPanel } from "@/components/admin/panels/inbox-panel";
 import { ProfilePanel } from "@/components/admin/panels/profile-panel";
 import { ProjectsPanel } from "@/components/admin/panels/projects-panel";
 import { SecurityPanel } from "@/components/admin/panels/security-panel";
@@ -46,7 +52,12 @@ export type PanelProps = {
   patch: (partial: Partial<PortfolioContent>) => void;
 };
 
-const TABS = [
+/**
+ * Content tabs edit the in-memory draft and share the Save bar. Tool tabs
+ * (dashboard, inbox, activity) fetch their own data and don't touch the draft —
+ * they're grouped separately in the sidebar so the two kinds don't blur.
+ */
+const CONTENT_TABS = [
   { id: "profile", label: "You", icon: User, Panel: ProfilePanel },
   { id: "contact", label: "Contact", icon: Send, Panel: ContactPanel },
   { id: "projects", label: "Projects", icon: Layers, Panel: ProjectsPanel },
@@ -60,6 +71,12 @@ const TABS = [
   { id: "github", label: "GitHub", icon: FolderGit2, Panel: GithubPanel },
   { id: "site", label: "Site & SEO", icon: Settings, Panel: SitePanel },
   { id: "security", label: "Password", icon: Shield, Panel: SecurityPanel },
+] as const;
+
+const TOOL_TABS = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "inbox", label: "Messages", icon: Inbox },
+  { id: "activity", label: "Activity", icon: Activity },
 ] as const;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -80,9 +97,24 @@ export function AdminEditor({
 }) {
   const [saved, setSaved] = useState(initialContent);
   const [draft, setDraft] = useState(initialContent);
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("profile");
+  const [tab, setTab] = useState<string>("dashboard");
   const [state, setState] = useState<SaveState>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [unread, setUnread] = useState(0);
+
+  // Unread badge on the Messages tab. Refreshed on mount and whenever the inbox
+  // is opened (where the count changes as messages are read).
+  useEffect(() => {
+    if (tab !== "dashboard" && tab !== "inbox") return;
+    let live = true;
+    fetch("/api/admin/dashboard")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => live && d && setUnread(d.unread ?? 0))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [tab]);
 
   // Structural comparison rather than a dirty flag: reverting an edit by hand
   // should genuinely clear the warning, not leave it stuck on.
@@ -171,7 +203,7 @@ export function AdminEditor({
     window.location.href = "/admin/login";
   }
 
-  const ActivePanel = TABS.find((item) => item.id === tab)?.Panel ?? ProfilePanel;
+  const ActivePanel = CONTENT_TABS.find((item) => item.id === tab)?.Panel ?? ProfilePanel;
 
   return (
     <div className="min-h-dvh">
@@ -256,30 +288,30 @@ export function AdminEditor({
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:gap-10 lg:py-10">
         <nav aria-label="Sections" className="lg:w-52 lg:shrink-0">
           <ul className="no-scrollbar flex gap-1 overflow-x-auto lg:sticky lg:top-24 lg:flex-col lg:overflow-visible">
-            {TABS.map((item) => {
-              const Icon = item.icon;
-              const isActive = tab === item.id;
+            {TOOL_TABS.map((item) => (
+              <SidebarLink
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                active={tab === item.id}
+                badge={item.id === "inbox" && unread > 0 ? unread : undefined}
+                onClick={() => setTab(item.id)}
+              />
+            ))}
 
-              return (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => setTab(item.id)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm whitespace-nowrap",
-                      "transition-colors duration-200",
-                      isActive
-                        ? "bg-[var(--surface-raised)] text-content"
-                        : "text-muted hover:text-content",
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0 opacity-70" />
-                    {item.label}
-                  </button>
-                </li>
-              );
-            })}
+            {/* Divider between tools and content editing. */}
+            <li aria-hidden className="my-2 hidden h-px bg-line lg:block" />
+            <li aria-hidden className="mx-1 w-px shrink-0 self-stretch bg-line lg:hidden" />
+
+            {CONTENT_TABS.map((item) => (
+              <SidebarLink
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                active={tab === item.id}
+                onClick={() => setTab(item.id)}
+              />
+            ))}
           </ul>
 
           <div className="mt-6 hidden lg:block">
@@ -291,9 +323,54 @@ export function AdminEditor({
         </nav>
 
         <main className="min-w-0 flex-1">
-          <ActivePanel content={draft} patch={patch} />
+          {tab === "dashboard" ? (
+            <DashboardPanel onNavigate={setTab} />
+          ) : tab === "inbox" ? (
+            <InboxPanel />
+          ) : tab === "activity" ? (
+            <ActivityPanel />
+          ) : (
+            <ActivePanel content={draft} patch={patch} />
+          )}
         </main>
       </div>
     </div>
+  );
+}
+
+function SidebarLink({
+  icon: Icon,
+  label,
+  active,
+  badge,
+  onClick,
+}: {
+  icon: typeof Inbox;
+  label: string;
+  active: boolean;
+  badge?: number;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm whitespace-nowrap",
+          "transition-colors duration-200",
+          active ? "bg-[var(--surface-raised)] text-content" : "text-muted hover:text-content",
+        )}
+      >
+        <Icon className="size-4 shrink-0 opacity-70" />
+        {label}
+        {badge ? (
+          <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-[var(--brand-primary)] px-1.5 text-[0.625rem] font-semibold text-white">
+            {badge}
+          </span>
+        ) : null}
+      </button>
+    </li>
   );
 }

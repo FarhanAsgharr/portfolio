@@ -33,14 +33,24 @@ Object storage (S3, Vercel Blob) would be the textbook answer, but each adds an 
 
 ---
 
-## Admin panel
+## Admin dashboard
 
 | | |
 | --- | --- |
-| **Address** | `/admin` |
-| **Sign in** | `ADMIN_PASSWORD` from your environment |
-| **Session** | Signed cookie, 7 days, HTTP-only |
-| **Protection** | `proxy.ts` gates every `/admin` and `/api/admin` route; each API route re-checks the session itself |
+| **Address** | `/admin` (same domain, same Vercel project) |
+| **Sign in** | `ADMIN_PASSWORD`, or a password set in-panel / reset over SMS |
+| **Session** | Signed, versioned cookie — 7 days, HTTP-only |
+| **Protection** | `proxy.ts` gates every `/admin` and `/api/admin` route; each API route re-checks the session, and version-aware so a reset logs out old sessions |
+
+The dashboard opens on a **home view** with visitor analytics (views, unique visitors, 14-day trend, top pages, devices, referrers), an unread-message count, content counts and recent activity. The left rail splits into **tools** (Dashboard, Messages, Activity) and **content** (the editable sections). Beyond content editing it includes:
+
+- **Visitor analytics** — first-party, no third-party script and no cookie banner. A beacon in `app/(site)/layout.tsx` records page views to `portfolio_events`; uniqueness uses a day-salted hash, and no IP or personal data is stored.
+- **Messages** — the contact form persists every submission to `portfolio_contact` (email is a convenience on top, not the record). Read, mark read/unread and delete in the inbox.
+- **Activity log** — `portfolio_activity` records sign-ins, saves, uploads and password changes. Read-only.
+
+### Why `app/admin/`, not a separate `admin/` app
+
+A separate top-level admin app (its own `admin/app`, its own build) can't serve `/admin` from the same domain and the same Vercel project without a reverse-proxy or rewrite layer, and it reintroduces the refresh-404 problem this structure avoids. Next.js App Router already gives one deployment two isolated areas through **route groups**: `app/(site)/` is the public portfolio with all its chrome, `app/admin/` is the dashboard with none of it, and they share only fonts, theme and the `lib/` + `components/` they choose to. One repo, one build, one Vercel project, both routes real — `/admin` refreshes and deep-links work because it's a genuine server route, not client-only.
 
 Editing is against an in-memory draft written in one request, so a half-finished edit never reaches the live site. `⌘S` saves; closing the tab with unsaved changes prompts first.
 
@@ -113,7 +123,8 @@ The login screen has a **Forgot password?** flow: enter the registered phone →
 - The code is only ever sent to `ADMIN_PHONE` (or the content phone) — never to a number the requester types. An unregistered number gets the same "if this is registered, a code was sent" response, so the endpoint can't be used to discover whether a number exists.
 - The code is stored as a **bcrypt** hash, expires after 5 minutes, is single-use, capped at 5 verification attempts, and rate-limited on send and resend.
 - A successful reset **bumps a session version**, invalidating every session that existed before it — enforced in the Node routes and on the `/admin` page (the Edge middleware can't reach the database, so it does signature + expiry only).
-- Without Twilio configured the whole flow works for testing: the code is shown on screen in development and logged in production. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM_NUMBER` for real delivery. Swapping providers touches only `lib/sms.ts`.
+- Delivery is real Twilio SMS via the official SDK — there is no test/dev fallback and the code is never shown in the UI or logged. Without `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_PHONE_NUMBER` (plus `ADMIN_PHONE`), the send endpoint returns a clear 503 rather than pretending. Swapping providers touches only `lib/sms.ts`.
+- API shapes: `send-otp {phone}` → `verify-otp {phone, otp}` → `reset-password {phone, newPassword, confirmPassword}`.
 
 ---
 

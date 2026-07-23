@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { logActivity } from "@/lib/activity";
+import { saveMessage } from "@/lib/contact-store";
 import { contactSchema } from "@/lib/validation";
 
 /**
@@ -111,6 +113,11 @@ export async function POST(request: Request) {
   if (parsed.data.company) {
     return NextResponse.json({ ok: true, delivered: false });
   }
+
+  // Persist first so a message is never lost to a flaky email provider, then
+  // attempt delivery. The admin inbox is the durable record.
+  await saveMessage(parsed.data);
+  await logActivity("message_received", `${parsed.data.name} — ${parsed.data.subject}`);
 
   try {
     const result = await deliver(parsed.data);

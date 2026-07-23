@@ -97,15 +97,15 @@ export async function issueOtp(phone: string): Promise<{ code: string; ttlMs: nu
 
   await sql`DELETE FROM portfolio_otp WHERE phone_number = ${normalized} AND consumed = false`;
   await sql`
-    INSERT INTO portfolio_otp (id, phone_number, otp_hash, expires_at)
-    VALUES (${newId()}, ${normalized}, ${hash}, ${expiresAt})
+    INSERT INTO portfolio_otp (id, phone_number, otp_hash, expires_at, updated_at)
+    VALUES (${newId()}, ${normalized}, ${hash}, ${expiresAt}, now())
   `;
 
   return { code, ttlMs: OTP_TTL_MS };
 }
 
 export type VerifyResult =
-  | { ok: true; otpId: string }
+  | { ok: true }
   | { ok: false; reason: "no-code" | "expired" | "locked" | "incorrect" };
 
 /**
@@ -146,38 +146,56 @@ export async function verifyOtp(phone: string, code: string): Promise<VerifyResu
   const matches = await bcrypt.compare(code, row.otp_hash);
 
   if (!matches) {
-    await sql`UPDATE portfolio_otp SET attempts = attempts + 1 WHERE id = ${row.id}`;
+    await sql`UPDATE portfolio_otp SET attempts = attempts + 1, updated_at = now() WHERE id = ${row.id}`;
     return { ok: false, reason: "incorrect" };
   }
 
-  await sql`UPDATE portfolio_otp SET verified = true WHERE id = ${row.id}`;
-  return { ok: true, otpId: row.id };
+  await sql`UPDATE portfolio_otp SET verified = true, updated_at = now() WHERE id = ${row.id}`;
+  return { ok: true };
 }
 
 /**
- * Confirm a code was verified and hasn't been used, then consume it.
- *
- * Called at the moment of password reset. The single UPDATE...WHERE consumed =
- * false is the atomic guard that makes a reset token usable exactly once, even
- * if two requests race.
+ * Is there a code for this number that was verified, hasn't been used, and
+ * hasn't expired? This is what authorises the reset step in the flow whose
+ * reset call carries only the phone — the verification already happened, and
+ * `consumeVerifiedReset` burns the row so it can't authorise a second reset.
  */
-export async function consumeVerifiedOtp(otpId: string, phone: string): Promise<boolean> {
+export async function hasVerifiedOtp(phone: string): Promise<boolean> {
   const sql = getSql();
   if (!sql) return false;
-
   await ensureSchema(sql);
   const normalized = normalizePhone(phone);
-
   const rows = await sql<{ id: string }[]>`
-    UPDATE portfolio_otp
-    SET consumed = true
-    WHERE id = ${otpId}
-      AND phone_number = ${normalized}
-      AND verified = true
-      AND consumed = false
-      AND expires_at > now()
-    RETURNING id
+    SELECT id FROM portfolio_otp
+    WHERE phone_number = ${normalized}
+      AND verified = true AND consumed = false AND expires_at > now()
+    LIMIT 1
   `;
-
   return rows.length > 0;
 }
+
+/**
+ * Atomically consume the verified code for a number and delete it.
+ *
+ * Returns true exactly once — the DELETE...RETURNING guarantees a second racing
+ * reset finds nothing. Deleting (rather than only flagging) satisfies "remove
+ * the code after a successful reset".
+ */
+export async function consumeVerifiedReset(phone: string): Promise<boolean> {
+  const sql = getSql();
+  if (!sql) return false;
+  await ensureSchema(sql);
+  const normalized = normalizePhone(phone);
+  const rows = await sql<{ id: string }[]>`
+    DELETE FROM portfolio_otp
+    WHERE id = (
+      SELECT id FROM portfolio_otp
+      WHERE phone_number = ${normalized}
+        AND verified = true AND consumed = false AND expires_at > now()
+      ORDER BY created_at DESC LIMIT 1
+    )
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+

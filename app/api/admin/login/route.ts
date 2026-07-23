@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getSessionVersion, verifyPassword } from "@/lib/admin-auth";
+import { logActivity } from "@/lib/activity";
 import {
   SESSION_COOKIE,
   createSessionToken,
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
   if (typeof password !== "string" || !(await verifyPassword(password))) {
     // Deliberately vague: naming which part was wrong helps an attacker and
     // nobody else — there's only one field.
+    await logActivity("login_failed", `from ${ip}`);
     return NextResponse.json({ error: "That password isn't right." }, { status: 401 });
   }
 
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
 
   // A successful sign-in clears the throttle for that address.
   attempts.delete(ip);
+  await logActivity("login", `from ${ip}`);
 
   return response;
 }

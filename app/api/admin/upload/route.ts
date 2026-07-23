@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { MAX_ASSET_BYTES, isAllowedMime, isValidAssetId, putAsset } from "@/lib/assets";
 import { verifyActiveSession } from "@/lib/admin-auth";
+import { logActivity } from "@/lib/activity";
 import { SESSION_COOKIE } from "@/lib/auth";
 import { isDatabaseConfigured } from "@/lib/db";
 
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
   // place, only the URL pointing at it changes.
   const versioned = `/api/asset/${id}?v=${Date.now()}`;
 
+  await logActivity("asset_uploaded", id);
   return NextResponse.json({
     ok: true,
     url: versioned,

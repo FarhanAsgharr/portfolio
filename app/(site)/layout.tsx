@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { CommandPalette } from "@/components/command/command-palette";
 import { AmbientBackground } from "@/components/effects/ambient-background";
+import { AnalyticsBeacon } from "@/components/effects/analytics-beacon";
 import { Cursor } from "@/components/effects/cursor";
 import { Preloader } from "@/components/effects/preloader";
 import { BackToTop } from "@/components/layout/back-to-top";
@@ -45,6 +46,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         </a>
 
         <Preloader />
+        <AnalyticsBeacon />
         <AmbientBackground />
         <ScrollProgressBar />
         <Cursor />

@@ -157,10 +157,54 @@ export function ensureSchema(sql: Sql): Promise<void> {
         verified      boolean NOT NULL DEFAULT false,
         consumed      boolean NOT NULL DEFAULT false,
         attempts      integer NOT NULL DEFAULT 0,
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        updated_at    timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`ALTER TABLE portfolio_otp ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`;
+    await sql`CREATE INDEX IF NOT EXISTS portfolio_otp_phone_idx ON portfolio_otp (phone_number, created_at DESC)`;
+
+    // First-party visitor analytics. One row per page view. No IP or personal
+    // data is stored — `visitor_hash` is a day-salted anonymous id used only to
+    // count uniques, and can't be reversed to a person or followed across days.
+    await sql`
+      CREATE TABLE IF NOT EXISTS portfolio_events (
+        id            bigserial PRIMARY KEY,
+        path          text NOT NULL,
+        referrer      text NOT NULL DEFAULT '',
+        device        text NOT NULL DEFAULT 'desktop',
+        visitor_hash  text NOT NULL DEFAULT '',
         created_at    timestamptz NOT NULL DEFAULT now()
       )
     `;
-    await sql`CREATE INDEX IF NOT EXISTS portfolio_otp_phone_idx ON portfolio_otp (phone_number, created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS portfolio_events_created_idx ON portfolio_events (created_at DESC)`;
+
+    // Contact-form submissions, so messages have somewhere to live besides an
+    // inbox that may never have been configured.
+    await sql`
+      CREATE TABLE IF NOT EXISTS portfolio_contact (
+        id          bigserial PRIMARY KEY,
+        name        text NOT NULL,
+        email       text NOT NULL,
+        subject     text NOT NULL DEFAULT '',
+        message     text NOT NULL,
+        is_read     boolean NOT NULL DEFAULT false,
+        created_at  timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS portfolio_contact_created_idx ON portfolio_contact (created_at DESC)`;
+
+    // An audit trail of admin actions: sign-ins, saves, uploads, password
+    // changes. Read-only in the panel; nothing here is user-editable.
+    await sql`
+      CREATE TABLE IF NOT EXISTS portfolio_activity (
+        id          bigserial PRIMARY KEY,
+        action      text NOT NULL,
+        detail      text NOT NULL DEFAULT '',
+        created_at  timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS portfolio_activity_created_idx ON portfolio_activity (created_at DESC)`;
   })().catch((error) => {
     if (isAlreadyExists(error)) return;
 

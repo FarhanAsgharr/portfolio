@@ -1,29 +1,28 @@
 import { NextResponse } from "next/server";
 
 import { checkSendAllowed, issueOtp } from "@/lib/otp";
-import { isValidPhone, maskPhone, phonesMatch } from "@/lib/phone";
+import { isValidPhone, phonesMatch } from "@/lib/phone";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
-import { getRegisteredPhone } from "@/lib/reset-token";
+import { getRegisteredPhone } from "@/lib/registered-phone";
 import { isSmsConfigured, sendOtpSms } from "@/lib/sms";
 
 /**
- * Start a password reset: send a code to the registered phone.
+ * Send a real 6-digit OTP over Twilio SMS.
  *
  * Two anti-abuse principles shape the responses:
+ *   1. Don't reveal whether a number is registered — a matching and a
+ *      non-matching number get the same success response, so the endpoint can't
+ *      be used to discover the owner's number.
+ *   2. Only ever text the owner's registered number, never one the caller typed.
  *
- *   1. Don't reveal whether a number is registered. Whether or not the entered
- *      number matches, the success response is the same ("if this is the
- *      registered number, a code was sent"). Only a genuinely malformed number
- *      is rejected, because that's a client mistake, not an enumeration signal.
- *
- *   2. Never text a number the requester chose. A code only actually goes out
- *      when the entered number matches the owner's registered one.
+ * The code is never logged and never returned. It exists only in the SMS and as
+ * a bcrypt hash in the database.
  */
 export async function POST(request: Request) {
   const limit = rateLimit(clientKey(request, "send-otp"), 6, 15 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
-      { error: "Too many requests. Try again later." },
+      { success: false, message: "Too many requests. Please try again later." },
       { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
     );
   }
@@ -32,28 +31,30 @@ export async function POST(request: Request) {
   try {
     ({ phone } = (await request.json()) as { phone?: unknown });
   } catch {
-    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+    return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 });
   }
 
   if (typeof phone !== "string" || !isValidPhone(phone)) {
     return NextResponse.json(
-      { error: "Enter a valid phone number, including the country code." },
+      { success: false, message: "Enter a valid phone number, including the country code." },
       { status: 422 },
     );
   }
 
-  const registered = await getRegisteredPhone();
-  const genericOk = NextResponse.json({
-    ok: true,
-    message: "If that number is registered, a verification code is on its way.",
-    smsConfigured: isSmsConfigured(),
-    maskedPhone: registered ? maskPhone(registered) : undefined,
-  });
+  // Fail clearly when SMS isn't set up, rather than pretending a code went out.
+  if (!isSmsConfigured()) {
+    console.error("[send-otp] Twilio is not configured; cannot send OTP.");
+    return NextResponse.json(
+      { success: false, message: "SMS service is not configured. Contact the site owner." },
+      { status: 503 },
+    );
+  }
 
-  // Silently stop for an unregistered number: same response as success, so a
-  // guesser learns nothing.
+  const registered = await getRegisteredPhone();
+
+  // Unregistered number: identical success response, but nothing is sent.
   if (!registered || !phonesMatch(phone, registered)) {
-    return genericOk;
+    return NextResponse.json({ success: true, message: "OTP sent successfully." });
   }
 
   const gate = await checkSendAllowed(registered);
@@ -61,30 +62,28 @@ export async function POST(request: Request) {
     const message =
       gate.reason === "cooldown"
         ? `Please wait ${gate.retryAfterSec}s before requesting another code.`
-        : "Too many codes requested. Try again in a little while.";
-    return NextResponse.json({ error: message }, { status: 429 });
+        : "Too many codes requested. Try again later.";
+    return NextResponse.json({ success: false, message }, { status: 429 });
   }
 
   const issued = await issueOtp(registered);
   if (!issued) {
     return NextResponse.json(
-      { error: "Couldn't start a reset. Is the database connected?" },
+      { success: false, message: "Couldn't start a reset. Try again shortly." },
       { status: 503 },
     );
   }
 
-  const delivery = await sendOtpSms(registered, issued.code);
+  try {
+    await sendOtpSms(registered, issued.code);
+  } catch (error) {
+    // Log the failure, never the code.
+    console.error("[send-otp] Twilio send failed:", error instanceof Error ? error.message : error);
+    return NextResponse.json(
+      { success: false, message: "Couldn't send the code. Try again shortly." },
+      { status: 502 },
+    );
+  }
 
-  // In dev with no SMS provider, the code comes back so the flow is testable.
-  // `sendOtpSms` only ever returns it outside production.
-  return NextResponse.json({
-    ok: true,
-    message: delivery.delivered
-      ? "A verification code has been sent to your phone."
-      : "SMS isn't configured, so the code is shown here for testing.",
-    smsConfigured: delivery.delivered,
-    maskedPhone: maskPhone(registered),
-    expiresInSec: Math.floor(issued.ttlMs / 1000),
-    devCode: delivery.devCode,
-  });
+  return NextResponse.json({ success: true, message: "OTP sent successfully." });
 }

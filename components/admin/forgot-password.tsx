@@ -24,9 +24,9 @@ const stepTransition = { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const };
  */
 export function ForgotPassword({ onBackToLogin }: { onBackToLogin: () => void }) {
   const [step, setStep] = useState<Step>("phone");
+  // The full E.164 number (country code + national number), assembled in the
+  // phone step and carried through to verify and reset.
   const [phone, setPhone] = useState("");
-  const [resetToken, setResetToken] = useState("");
-  const [maskedPhone, setMaskedPhone] = useState<string | null>(null);
 
   return (
     <div>
@@ -79,31 +79,19 @@ export function ForgotPassword({ onBackToLogin }: { onBackToLogin: () => void })
         >
           {step === "phone" ? (
             <PhoneStep
-              phone={phone}
-              setPhone={setPhone}
-              onSent={(masked) => {
-                setMaskedPhone(masked);
+              onSent={(fullPhone) => {
+                setPhone(fullPhone);
                 setStep("otp");
               }}
             />
           ) : null}
 
           {step === "otp" ? (
-            <OtpStep
-              phone={phone}
-              maskedPhone={maskedPhone}
-              onVerified={(token) => {
-                setResetToken(token);
-                setStep("reset");
-              }}
-              onResend={() => {
-                /* handled inside via its own request */
-              }}
-            />
+            <OtpStep phone={phone} onVerified={() => setStep("reset")} />
           ) : null}
 
           {step === "reset" ? (
-            <ResetStep resetToken={resetToken} onDone={() => setStep("done")} />
+            <ResetStep phone={phone} onDone={() => setStep("done")} />
           ) : null}
 
           {step === "done" ? <DoneStep onBackToLogin={onBackToLogin} /> : null}
@@ -117,48 +105,51 @@ export function ForgotPassword({ onBackToLogin }: { onBackToLogin: () => void })
 /*  Step 1 — phone                                                            */
 /* -------------------------------------------------------------------------- */
 
-function PhoneStep({
-  phone,
-  setPhone,
-  onSent,
-}: {
-  phone: string;
-  setPhone: (v: string) => void;
-  onSent: (maskedPhone: string | null) => void;
-}) {
+/** A small, hand-picked list of dialling codes — enough to cover the audience
+ *  without shipping a 200-country dataset for a single-owner reset flow. */
+const COUNTRY_CODES = [
+  { code: "+92", label: "🇵🇰 +92" },
+  { code: "+91", label: "🇮🇳 +91" },
+  { code: "+1", label: "🇺🇸 +1" },
+  { code: "+44", label: "🇬🇧 +44" },
+  { code: "+971", label: "🇦🇪 +971" },
+  { code: "+966", label: "🇸🇦 +966" },
+  { code: "+61", label: "🇦🇺 +61" },
+  { code: "+49", label: "🇩🇪 +49" },
+  { code: "+33", label: "🇫🇷 +33" },
+  { code: "+880", label: "🇧🇩 +880" },
+  { code: "+60", label: "🇲🇾 +60" },
+  { code: "+65", label: "🇸🇬 +65" },
+  { code: "+90", label: "🇹🇷 +90" },
+  { code: "+20", label: "🇪🇬 +20" },
+];
+
+function PhoneStep({ onSent }: { onSent: (fullPhone: string) => void }) {
+  const [dialCode, setDialCode] = useState("+92");
+  const [national, setNational] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
+
+  // Assemble E.164: dialling code + the national number with any leading zero
+  // and separators removed.
+  const fullPhone = `${dialCode}${national.replace(/\D/g, "").replace(/^0+/, "")}`;
+  const valid = national.replace(/\D/g, "").length >= 6;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!valid) return;
     setBusy(true);
     setError(null);
-    setDevCode(null);
 
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone: fullPhone }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        maskedPhone?: string;
-        devCode?: string;
-      };
-      if (!res.ok) throw new Error(data.error ?? "Couldn't send a code.");
-
-      // Dev delivery (no SMS provider) hands the code back; carry it into the
-      // next step so testing doesn't need a phone.
-      if (data.devCode) {
-        setDevCode(data.devCode);
-        // Brief pause so the tester can read the code before the step slides.
-        setTimeout(() => onSent(data.maskedPhone ?? null), 1200);
-        return;
-      }
-
-      onSent(data.maskedPhone ?? null);
+      const data = (await res.json()) as { success?: boolean; message?: string };
+      if (!res.ok || !data.success) throw new Error(data.message ?? "Couldn't send a code.");
+      onSent(fullPhone);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't send a code.");
       setBusy(false);
@@ -177,19 +168,34 @@ function PhoneStep({
         </p>
       </div>
 
-      <AdminField label="Phone number" htmlFor="phone" hint="Include the country code, e.g. +92…">
-        <AdminInput
-          id="phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          autoFocus
-          required
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+92 300 0000000"
-          aria-invalid={Boolean(error)}
-        />
+      <AdminField label="Phone number" htmlFor="national" hint="We only send to the number registered on this account.">
+        <div className="flex gap-2">
+          <select
+            aria-label="Country code"
+            value={dialCode}
+            onChange={(e) => setDialCode(e.target.value)}
+            className="shrink-0 rounded-lg border border-line bg-[var(--surface-inset)]/60 px-3 py-2.5 text-[0.9375rem] text-content focus:border-[color-mix(in_oklab,var(--brand-primary)_60%,transparent)] focus:outline-none"
+          >
+            {COUNTRY_CODES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <AdminInput
+            id="national"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel-national"
+            autoFocus
+            required
+            value={national}
+            onChange={(e) => setNational(e.target.value)}
+            placeholder="300 0000000"
+            aria-invalid={Boolean(error)}
+            className="flex-1"
+          />
+        </div>
       </AdminField>
 
       {error ? (
@@ -198,16 +204,9 @@ function PhoneStep({
         </p>
       ) : null}
 
-      {devCode ? (
-        <p className="rounded-lg border border-[color-mix(in_oklab,var(--brand-accent)_30%,transparent)] bg-[color-mix(in_oklab,var(--brand-accent)_10%,transparent)] px-4 py-3 text-sm text-content">
-          Test mode — your code is{" "}
-          <strong className="font-mono tracking-widest">{devCode}</strong>
-        </p>
-      ) : null}
-
-      <AdminButton type="submit" tone="primary" disabled={busy || phone.trim().length < 6}>
+      <AdminButton type="submit" tone="primary" disabled={busy || !valid}>
         {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-        {busy ? "Sending…" : "Send code"}
+        {busy ? "Sending…" : "Send OTP"}
       </AdminButton>
     </form>
   );
@@ -218,24 +217,14 @@ function PhoneStep({
 /* -------------------------------------------------------------------------- */
 
 const OTP_LENGTH = 6;
-const COUNTDOWN_START = 5 * 60; // 5 minutes, matching the server TTL
+const RESEND_COUNTDOWN = 60; // 60-second wait before "Resend" unlocks
 
-function OtpStep({
-  phone,
-  maskedPhone,
-  onVerified,
-}: {
-  phone: string;
-  maskedPhone: string | null;
-  onVerified: (resetToken: string) => void;
-  onResend: () => void;
-}) {
+function OtpStep({ phone, onVerified }: { phone: string; onVerified: () => void }) {
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_START);
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_COUNTDOWN);
   const [resending, setResending] = useState(false);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
 
   // Countdown to expiry; drives the "Resend" button becoming available.
@@ -253,11 +242,11 @@ function OtpStep({
         const res = await fetch("/api/auth/verify-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, code: fullCode }),
+          body: JSON.stringify({ phone, otp: fullCode }),
         });
-        const data = (await res.json()) as { error?: string; resetToken?: string };
-        if (!res.ok || !data.resetToken) throw new Error(data.error ?? "Verification failed.");
-        onVerified(data.resetToken);
+        const data = (await res.json()) as { success?: boolean; message?: string };
+        if (!res.ok || !data.success) throw new Error(data.message ?? "Verification failed.");
+        onVerified();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Verification failed.");
         setDigits(Array(OTP_LENGTH).fill(""));
@@ -309,18 +298,16 @@ function OtpStep({
   async function resend() {
     setResending(true);
     setError(null);
-    setDevCode(null);
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
       });
-      const data = (await res.json()) as { error?: string; devCode?: string };
-      if (!res.ok) throw new Error(data.error ?? "Couldn't resend.");
-      if (data.devCode) setDevCode(data.devCode);
+      const data = (await res.json()) as { success?: boolean; message?: string };
+      if (!res.ok || !data.success) throw new Error(data.message ?? "Couldn't resend.");
       setDigits(Array(OTP_LENGTH).fill(""));
-      setSecondsLeft(COUNTDOWN_START);
+      setSecondsLeft(RESEND_COUNTDOWN);
       inputs.current[0]?.focus();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't resend.");
@@ -329,8 +316,6 @@ function OtpStep({
     }
   }
 
-  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
-  const ss = String(secondsLeft % 60).padStart(2, "0");
   const expired = secondsLeft <= 0;
 
   return (
@@ -341,7 +326,7 @@ function OtpStep({
         </span>
         <h1 className="mt-5 text-h3">Enter the code</h1>
         <p className="mt-2 text-sm text-muted">
-          We sent a 6-digit code to {maskedPhone ?? "your phone"}.
+          We sent a 6-digit code to your phone. It expires in 5 minutes.
         </p>
       </div>
 
@@ -383,16 +368,9 @@ function OtpStep({
         </p>
       ) : null}
 
-      {devCode ? (
-        <p className="rounded-lg border border-[color-mix(in_oklab,var(--brand-accent)_30%,transparent)] bg-[color-mix(in_oklab,var(--brand-accent)_10%,transparent)] px-4 py-3 text-sm text-content">
-          Test mode — new code is{" "}
-          <strong className="font-mono tracking-widest">{devCode}</strong>
-        </p>
-      ) : null}
-
       <div className="flex items-center justify-between">
         <span className="font-mono text-sm text-faint tabular-nums">
-          {expired ? "Code expired" : `Expires in ${mm}:${ss}`}
+          {expired ? "Didn't get it?" : `Resend in 0:${String(secondsLeft).padStart(2, "0")}`}
         </span>
 
         <button
@@ -407,7 +385,7 @@ function OtpStep({
           )}
         >
           {resending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
-          Resend code
+          Resend OTP
         </button>
       </div>
     </div>
@@ -418,7 +396,7 @@ function OtpStep({
 /*  Step 3 — reset                                                            */
 /* -------------------------------------------------------------------------- */
 
-function ResetStep({ resetToken, onDone }: { resetToken: string; onDone: () => void }) {
+function ResetStep({ phone, onDone }: { phone: string; onDone: () => void }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -437,10 +415,10 @@ function ResetStep({ resetToken, onDone }: { resetToken: string; onDone: () => v
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resetToken, newPassword: password }),
+        body: JSON.stringify({ phone, newPassword: password, confirmPassword: confirm }),
       });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Couldn't reset the password.");
+      const data = (await res.json()) as { success?: boolean; message?: string };
+      if (!res.ok || !data.success) throw new Error(data.message ?? "Couldn't reset the password.");
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't reset the password.");
