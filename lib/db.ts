@@ -126,16 +126,41 @@ export function ensureSchema(sql: Sql): Promise<void> {
     `;
     // One row, holding the password chosen from the admin panel. Absent until
     // the password is changed there, at which point it overrides ADMIN_PASSWORD.
-    // Only a PBKDF2 hash and its salt are stored — never the password itself.
+    // Only a hash is stored — never the password itself. `password_salt` is
+    // retained for rows written by the earlier PBKDF2 scheme; bcrypt embeds its
+    // own salt and leaves it empty. `session_version` is bumped on every reset
+    // so tokens minted before the reset stop validating.
     await sql`
       CREATE TABLE IF NOT EXISTS portfolio_auth (
-        id             integer PRIMARY KEY DEFAULT 1,
-        password_hash  text NOT NULL,
-        password_salt  text NOT NULL,
-        updated_at     timestamptz NOT NULL DEFAULT now(),
+        id              integer PRIMARY KEY DEFAULT 1,
+        password_hash   text NOT NULL,
+        password_salt   text NOT NULL DEFAULT '',
+        session_version integer NOT NULL DEFAULT 1,
+        updated_at      timestamptz NOT NULL DEFAULT now(),
         CONSTRAINT portfolio_auth_single_row CHECK (id = 1)
       )
     `;
+    // Columns added after the table first shipped. IF NOT EXISTS makes each a
+    // no-op on databases that already have them.
+    await sql`ALTER TABLE portfolio_auth ADD COLUMN IF NOT EXISTS session_version integer NOT NULL DEFAULT 1`;
+    await sql`ALTER TABLE portfolio_auth ALTER COLUMN password_salt SET DEFAULT ''`;
+
+    // One-time passwords for phone-based password reset. The code itself is
+    // stored only as a bcrypt hash; `verified` and `consumed` enforce
+    // single-use, `attempts` caps brute force, `expires_at` caps the window.
+    await sql`
+      CREATE TABLE IF NOT EXISTS portfolio_otp (
+        id            text PRIMARY KEY,
+        phone_number  text NOT NULL,
+        otp_hash      text NOT NULL,
+        expires_at    timestamptz NOT NULL,
+        verified      boolean NOT NULL DEFAULT false,
+        consumed      boolean NOT NULL DEFAULT false,
+        attempts      integer NOT NULL DEFAULT 0,
+        created_at    timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS portfolio_otp_phone_idx ON portfolio_otp (phone_number, created_at DESC)`;
   })().catch((error) => {
     if (isAlreadyExists(error)) return;
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ForgotPassword } from "@/components/admin/forgot-password";
 import { PasswordInput } from "@/components/admin/password-input";
 import { AdminButton, AdminField } from "@/components/admin/ui";
 
@@ -25,6 +26,7 @@ export function LoginForm({
   databaseConfigured: boolean;
 }) {
   const router = useRouter();
+  const [mode, setMode] = useState<"login" | "forgot">("login");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,13 +66,24 @@ export function LoginForm({
         </Link>
 
         <div className="rounded-2xl border border-line bg-[var(--surface-card)]/60 p-7 backdrop-blur-xl sm:p-9">
-          <span className="grid size-11 place-items-center rounded-xl border border-line bg-[var(--surface-inset)] text-primary">
-            <KeyRound className="size-5" />
-          </span>
+          {mode === "forgot" && authConfigured ? null : (
+            <>
+              <span className="grid size-11 place-items-center rounded-xl border border-line bg-[var(--surface-inset)] text-primary">
+                <KeyRound className="size-5" />
+              </span>
+              <h1 className="mt-6 text-h3">Portfolio admin</h1>
+            </>
+          )}
 
-          <h1 className="mt-6 text-h3">Portfolio admin</h1>
-
-          {authConfigured ? (
+          {authConfigured && mode === "forgot" ? (
+            <ForgotPassword
+              onBackToLogin={() => {
+                setMode("login");
+                setError(null);
+                setPassword("");
+              }}
+            />
+          ) : authConfigured ? (
             <>
               <p className="mt-2 text-sm text-muted">
                 Sign in to edit your photo, résumé, projects and contact details.
@@ -96,10 +109,20 @@ export function LoginForm({
                   </p>
                 ) : null}
 
-                <AdminButton type="submit" tone="primary" disabled={busy || !password}>
-                  {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {busy ? "Signing in…" : "Sign in"}
-                </AdminButton>
+                <div className="flex items-center justify-between gap-3">
+                  <AdminButton type="submit" tone="primary" disabled={busy || !password}>
+                    {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {busy ? "Signing in…" : "Sign in"}
+                  </AdminButton>
+
+                  <button
+                    type="button"
+                    onClick={() => setMode("forgot")}
+                    className="text-sm text-faint transition-colors hover:text-content"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
               </form>
 
               {!databaseConfigured ? (

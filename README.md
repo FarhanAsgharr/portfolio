@@ -103,6 +103,17 @@ Copy `.env.example` to `.env.local`. Everything is optional; the site degrades h
 | `ADMIN_PASSWORD` | `/admin` shows setup instructions instead of a login |
 | `ADMIN_SECRET` | Falls back to signing sessions with the password |
 | `RESEND_API_KEY`, `CONTACT_TO_EMAIL` | Contact form validates and rate-limits but sends no mail |
+| `ADMIN_PHONE` | Reset codes fall back to the phone in your site content |
+| `TWILIO_*` (SID, token, from) | Reset flow shows/logs the code instead of texting it |
+
+## Forgot password (SMS OTP)
+
+The login screen has a **Forgot password?** flow: enter the registered phone → receive a 6-digit code → verify → set a new password.
+
+- The code is only ever sent to `ADMIN_PHONE` (or the content phone) — never to a number the requester types. An unregistered number gets the same "if this is registered, a code was sent" response, so the endpoint can't be used to discover whether a number exists.
+- The code is stored as a **bcrypt** hash, expires after 5 minutes, is single-use, capped at 5 verification attempts, and rate-limited on send and resend.
+- A successful reset **bumps a session version**, invalidating every session that existed before it — enforced in the Node routes and on the `/admin` page (the Edge middleware can't reach the database, so it does signature + expiry only).
+- Without Twilio configured the whole flow works for testing: the code is shown on screen in development and logged in production. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM_NUMBER` for real delivery. Swapping providers touches only `lib/sms.ts`.
 
 ---
 

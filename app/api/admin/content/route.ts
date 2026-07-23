@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { verifyActiveSession } from "@/lib/admin-auth";
+import { SESSION_COOKIE } from "@/lib/auth";
 import { defaultContent, getContentForEditing, saveContent } from "@/lib/content";
 import { isDatabaseConfigured } from "@/lib/db";
 import { CONTENT_VERSION, type PortfolioContent } from "@/types/content";
@@ -15,7 +16,7 @@ import { cookies } from "next/headers";
  */
 async function requireSession() {
   const store = await cookies();
-  return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  return verifyActiveSession(store.get(SESSION_COOKIE)?.value);
 }
 
 export async function GET() {

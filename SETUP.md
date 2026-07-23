@@ -160,5 +160,27 @@ Make sure you copied the *whole* connection string including `?sslmode=require`.
 **I edited something and want the examples back**
 Admin panel → **Reset to example** at the bottom of the left sidebar. This wipes your content, so be sure.
 
-**Locked out**
-Change `ADMIN_PASSWORD` in `.env.local` (or in Vercel's settings) and restart. There's no email recovery — the password *is* the account.
+**Forgot your password**
+Use **Forgot password?** on the login screen — it texts a 6-digit code to your registered number and lets you set a new one. For the text to actually send you need Twilio set up (see below); without it, the code is only shown on screen in development / written to the server logs.
+
+**Locked out completely**
+Two ways back in, no email required:
+1. Delete the single row in the `portfolio_auth` table in your database — the original `ADMIN_PASSWORD` works again immediately.
+2. Or just change `ADMIN_PASSWORD` in `.env.local` / Vercel and restart.
+The password *is* the account; keep `ADMIN_PASSWORD` somewhere safe as your master key.
+
+---
+
+## Optional — SMS codes for "Forgot password"
+
+The forgot-password flow works without any of this — it just shows the code on screen instead of texting it, which is fine for testing but not for real use. To have codes actually delivered:
+
+1. Set **`ADMIN_PHONE`** to your mobile (with country code, e.g. `+923001234567`). This is the *only* number a reset code is ever sent to. If you skip it, the phone number from your Contact tab is used.
+2. Sign up free at **https://twilio.com/try-twilio**, get a phone number, and add three settings (to `.env.local` and to Vercel):
+
+```bash
+ADMIN_PHONE=+923001234567
+TWILIO_ACCOUNT_SID=AC…
+TWILIO_AUTH_TOKEN=…
+TWILIO_FROM_NUMBER=+1…
+```

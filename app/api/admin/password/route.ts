@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { changePassword } from "@/lib/admin-auth";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { changePassword, verifyActiveSession } from "@/lib/admin-auth";
+import { SESSION_COOKIE } from "@/lib/auth";
 
 /**
  * Change the admin password.
@@ -18,7 +18,7 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
  */
 export async function POST(request: Request) {
   const store = await cookies();
-  if (!(await verifySessionToken(store.get(SESSION_COOKIE)?.value))) {
+  if (!(await verifyActiveSession(store.get(SESSION_COOKIE)?.value))) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 

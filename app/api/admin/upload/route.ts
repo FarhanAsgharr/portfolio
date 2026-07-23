@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { MAX_ASSET_BYTES, isAllowedMime, isValidAssetId, putAsset } from "@/lib/assets";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { verifyActiveSession } from "@/lib/admin-auth";
+import { SESSION_COOKIE } from "@/lib/auth";
 import { isDatabaseConfigured } from "@/lib/db";
 
 /**
@@ -14,7 +15,7 @@ import { isDatabaseConfigured } from "@/lib/db";
  */
 export async function POST(request: Request) {
   const store = await cookies();
-  if (!(await verifySessionToken(store.get(SESSION_COOKIE)?.value))) {
+  if (!(await verifyActiveSession(store.get(SESSION_COOKIE)?.value))) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 

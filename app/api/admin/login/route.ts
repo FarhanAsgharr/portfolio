@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { verifyPassword } from "@/lib/admin-auth";
+import { getSessionVersion, verifyPassword } from "@/lib/admin-auth";
 import {
   SESSION_COOKIE,
   createSessionToken,
@@ -59,7 +59,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "That password isn't right." }, { status: 401 });
   }
 
-  const token = await createSessionToken();
+  // Mint the token under the current session version, so a later password reset
+  // (which bumps the version) invalidates this session along with the rest.
+  const token = await createSessionToken(await getSessionVersion());
   if (!token) {
     return NextResponse.json({ error: "Could not start a session." }, { status: 500 });
   }

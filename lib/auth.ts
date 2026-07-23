@@ -56,34 +56,71 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-/** Mint a session token valid for the next seven days. */
-export async function createSessionToken(): Promise<string | null> {
+/**
+ * Mint a session token valid for the next seven days.
+ *
+ * The token is `expiresAt.version.signature`, where the signature covers both
+ * the expiry and the session version. The version lets a password reset
+ * invalidate every earlier token: the reset bumps the stored version, and a
+ * token minted under the old one no longer matches (checked by the Node-side
+ * `sessionVersionMatches`, since the Edge check has no database access).
+ */
+export async function createSessionToken(version = 1): Promise<string | null> {
   const secret = getSecret();
   if (!secret) return null;
 
   const expiresAt = Date.now() + SESSION_DURATION_MS;
-  const signature = await hmac(String(expiresAt), secret);
-  return `${expiresAt}.${signature}`;
+  const payload = `${expiresAt}.${version}`;
+  const signature = await hmac(payload, secret);
+  return `${payload}.${signature}`;
 }
 
-/** Verify a cookie value. Returns false for tampered, malformed or expired tokens. */
-export async function verifySessionToken(token: string | undefined): Promise<boolean> {
+interface DecodedToken {
+  expiresAt: number;
+  version: number;
+}
+
+/**
+ * Validate a token's signature and expiry, returning its payload.
+ *
+ * Edge-safe: no database access. It proves the token was minted by this server
+ * and hasn't expired, but *not* that its version is still current — that check
+ * needs the database and lives in `sessionVersionMatches`.
+ */
+async function decodeAndVerify(token: string | undefined): Promise<DecodedToken | null> {
   const secret = getSecret();
-  if (!secret || !token) return false;
+  if (!secret || !token) return null;
 
-  const separator = token.lastIndexOf(".");
-  if (separator === -1) return false;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [expiresAtRaw, versionRaw, signature] = parts;
 
-  const expiresAt = token.slice(0, separator);
-  const signature = token.slice(separator + 1);
+  const expiry = Number(expiresAtRaw);
+  const version = Number(versionRaw);
+  if (!Number.isFinite(expiry) || !Number.isFinite(version)) return null;
+  if (expiry < Date.now()) return null;
 
-  const expiry = Number(expiresAt);
-  if (!Number.isFinite(expiry) || expiry < Date.now()) return false;
+  // Signature checked after expiry so an expired token can't be reused, and the
+  // comparison is constant-time so a near-miss reveals nothing.
+  const expected = await hmac(`${expiresAtRaw}.${versionRaw}`, secret);
+  if (!timingSafeEqual(signature, expected)) return null;
 
-  // Signature is checked *after* expiry so an expired token can't be reused,
-  // and the comparison is constant-time so a near-miss reveals nothing.
-  const expected = await hmac(expiresAt, secret);
-  return timingSafeEqual(signature, expected);
+  return { expiresAt: expiry, version };
+}
+
+/**
+ * Verify a cookie value. Returns false for tampered, malformed or expired
+ * tokens. This is the Edge-safe gate; version currency is enforced separately
+ * on the Node side.
+ */
+export async function verifySessionToken(token: string | undefined): Promise<boolean> {
+  return (await decodeAndVerify(token)) !== null;
+}
+
+/** The version a valid token was minted under, or null if the token is invalid. */
+export async function getSessionTokenVersion(token: string | undefined): Promise<number | null> {
+  const decoded = await decodeAndVerify(token);
+  return decoded ? decoded.version : null;
 }
 
 /**
