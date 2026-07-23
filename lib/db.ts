@@ -124,6 +124,18 @@ export function ensureSchema(sql: Sql): Promise<void> {
         updated_at  timestamptz NOT NULL DEFAULT now()
       )
     `;
+    // One row, holding the password chosen from the admin panel. Absent until
+    // the password is changed there, at which point it overrides ADMIN_PASSWORD.
+    // Only a PBKDF2 hash and its salt are stored — never the password itself.
+    await sql`
+      CREATE TABLE IF NOT EXISTS portfolio_auth (
+        id             integer PRIMARY KEY DEFAULT 1,
+        password_hash  text NOT NULL,
+        password_salt  text NOT NULL,
+        updated_at     timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT portfolio_auth_single_row CHECK (id = 1)
+      )
+    `;
   })().catch((error) => {
     if (isAlreadyExists(error)) return;
 

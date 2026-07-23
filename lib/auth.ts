@@ -86,8 +86,17 @@ export async function verifySessionToken(token: string | undefined): Promise<boo
   return timingSafeEqual(signature, expected);
 }
 
-/** Check the submitted password against `ADMIN_PASSWORD`. */
-export async function verifyPassword(candidate: string): Promise<boolean> {
+/**
+ * Check the submitted password against the `ADMIN_PASSWORD` environment
+ * variable.
+ *
+ * This is the *fallback* check. Once a password has been set from the admin
+ * panel it lives in the database and `lib/admin-auth.ts` takes precedence — but
+ * that path needs a database connection, which this file deliberately avoids so
+ * it stays importable from the Edge middleware. Keep this env-only and
+ * dependency-free.
+ */
+export async function verifyEnvPassword(candidate: string): Promise<boolean> {
   const password = process.env.ADMIN_PASSWORD;
   if (!password) return false;
 

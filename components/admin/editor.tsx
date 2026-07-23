@@ -15,6 +15,7 @@ import {
   Save,
   Send,
   Settings,
+  Shield,
   Sparkles,
   User,
   Briefcase,
@@ -31,6 +32,7 @@ import { ExperiencePanel } from "@/components/admin/panels/experience-panel";
 import { GithubPanel } from "@/components/admin/panels/github-panel";
 import { ProfilePanel } from "@/components/admin/panels/profile-panel";
 import { ProjectsPanel } from "@/components/admin/panels/projects-panel";
+import { SecurityPanel } from "@/components/admin/panels/security-panel";
 import { ServicesPanel } from "@/components/admin/panels/services-panel";
 import { SitePanel } from "@/components/admin/panels/site-panel";
 import { SkillsPanel } from "@/components/admin/panels/skills-panel";
@@ -57,6 +59,7 @@ const TABS = [
   { id: "stack", label: "Tech stack", icon: MessageSquareQuote, Panel: StackPanel },
   { id: "github", label: "GitHub", icon: FolderGit2, Panel: GithubPanel },
   { id: "site", label: "Site & SEO", icon: Settings, Panel: SitePanel },
+  { id: "security", label: "Password", icon: Shield, Panel: SecurityPanel },
 ] as const;
 
 type SaveState = "idle" | "saving" | "saved" | "error";

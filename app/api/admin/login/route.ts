@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
+import { verifyPassword } from "@/lib/admin-auth";
 import {
   SESSION_COOKIE,
   createSessionToken,
   isAuthConfigured,
   sessionCookieOptions,
-  verifyPassword,
 } from "@/lib/auth";
 
 /** Simple in-memory throttle: enough to make brute force impractical. */

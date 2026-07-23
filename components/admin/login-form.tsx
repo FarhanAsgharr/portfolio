@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { AdminButton, AdminField, AdminInput } from "@/components/admin/ui";
+import { PasswordInput } from "@/components/admin/password-input";
+import { AdminButton, AdminField } from "@/components/admin/ui";
 
 /**
  * Sign-in.
@@ -77,9 +78,8 @@ export function LoginForm({
 
               <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-4">
                 <AdminField label="Password" htmlFor="password">
-                  <AdminInput
+                  <PasswordInput
                     id="password"
-                    type="password"
                     autoComplete="current-password"
                     autoFocus
                     required
